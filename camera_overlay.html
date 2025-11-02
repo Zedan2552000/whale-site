@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>تصوير مع الشخصية</title>
+<style>
+  html,body { margin:0; font-family: system-ui, sans-serif; background:#0b1220; color:#eee; text-align:center; }
+  .camera-wrap { position:relative; width:100%; max-width:500px; aspect-ratio: 3/4; background:#000; margin:20px auto; overflow:hidden; border-radius:12px; }
+  video { width:100%; height:100%; object-fit:cover; }
+  img.overlay { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40%; pointer-events:auto; }
+  .controls { display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  button { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.08); color:#fff; }
+</style>
+</head>
+<body>
+<h2>📸 التصوير مع الشخصية</h2>
+<div class="camera-wrap">
+  <video id="video" autoplay playsinline></video>
+  <img id="overlay" class="overlay" src="Dzdtxfh.png" alt="overlay" />
+</div>
+<div class="controls">
+  <button id="switchCam">تبديل الكاميرا</button>
+  <button id="captureBtn">التقاط</button>
+  <button id="zoomIn">➕ تكبير</button>
+  <button id="zoomOut">➖ تصغير</button>
+</div>
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+let currentFacing = 'user';
+async function startCamera() {
+  if (window.stream) window.stream.getTracks().forEach(t => t.stop());
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+  window.stream = stream;
+  video.srcObject = stream;
+}
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const canvas = document.getElementById('canvas');
+
+startCamera();
+
+document.getElementById('switchCam').onclick = () => {
+  currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+  startCamera();
+};
+
+document.getElementById('captureBtn').onclick = () => {
+  const rect = video.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const overlayRect = overlay.getBoundingClientRect();
+  const x = overlayRect.left - rect.left;
+  const y = overlayRect.top - rect.top;
+  ctx.drawImage(overlay, x, y, overlayRect.width, overlayRect.height);
+  const link = document.createElement('a');
+  link.download = 'snapshot.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+let isDragging = false, startX, startY, initialX = 50, initialY = 50, scale = 1;
+overlay.style.left = initialX + '%';
+overlay.style.top = initialY + '%';
+
+overlay.addEventListener('mousedown', startDrag);
+overlay.addEventListener('touchstart', startDrag);
+window.addEventListener('mousemove', drag);
+window.addEventListener('touchmove', drag);
+window.addEventListener('mouseup', ()=> isDragging = false);
+window.addEventListener('touchend', ()=> isDragging = false);
+
+function startDrag(e){
+  isDragging = true;
+  startX = e.touches ? e.touches[0].clientX : e.clientX;
+  startY = e.touches ? e.touches[0].clientY : e.clientY;
+}
+
+function drag(e){
+  if(!isDragging) return;
+  const moveX = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+  const moveY = (e.touches ? e.touches[0].clientY : e.clientY) - startY;
+  initialX += moveX / window.innerWidth * 100;
+  initialY += moveY / window.innerHeight * 100;
+  overlay.style.left = initialX + '%';
+  overlay.style.top = initialY + '%';
+  startX = e.touches ? e.touches[0].clientX : e.clientX;
+  startY = e.touches ? e.touches[0].clientY : e.clientY;
+}
+
+document.getElementById('zoomIn').onclick = ()=>{ scale += 0.1; updateOverlay(); };
+document.getElementById('zoomOut').onclick = ()=>{ scale = Math.max(0.2, scale - 0.1); updateOverlay(); };
+function updateOverlay(){ overlay.style.transform = `translate(-50%,-50%) scale(${scale})`; }
+</script>
+</body>
+</html>
